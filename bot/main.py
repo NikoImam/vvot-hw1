@@ -1,21 +1,28 @@
 import os
 import requests
 from fastapi import FastAPI, Request
+from fastapi.testclient import TestClient
 import uvicorn
 from yandex_cloud_ml_sdk import YCloudML
 import openai
 import json
 import base64
+import boto3
+
 
 app = FastAPI()
+test_app = TestClient(app)
 
 TG_TOKEN = os.getenv('TG_BOT_TOKEN')
 FOLDER_ID=os.getenv('FOLDER_ID')
 AI_SA_API_KEY = os.getenv('AI_SA_API_KEY')
 CONFIDENCE_LEVEL = float(os.getenv('CONFIDENCE_LEVEL', 0.8))
 AI_MODEL = os.getenv('AI_MODEL', "yandexgpt-lite")
+STATIC_KEY = os.getenv('STATIC_KEY')
+STATIC_KEY_ID = os.getenv('STATIC_KEY_ID')
+BUCKET_NAME=os.getenv('BUCKET_NAME')
 
-if not (TG_TOKEN and FOLDER_ID and AI_SA_API_KEY and CONFIDENCE_LEVEL):
+if not (TG_TOKEN and FOLDER_ID and AI_SA_API_KEY and CONFIDENCE_LEVEL and STATIC_KEY and STATIC_KEY_ID):
     raise RuntimeError("Установлены не все переменные окружения")
 
 API_URL = f"https://api.telegram.org/bot{TG_TOKEN}"
@@ -30,30 +37,26 @@ client = openai.OpenAI(
     project=FOLDER_ID
 )
 
+s3_client = boto3.client(
+    service_name='s3',
+    endpoint_url='https://storage.yandexcloud.net',
+    aws_access_key_id=STATIC_KEY_ID,
+    aws_secret_access_key=STATIC_KEY
+)
+
+def get_object(bucket_name: str, object_name: str):
+    object = s3_client.get_object(Bucket=bucket_name, Key=object_name)
+
+    return object['Body'].read().decode('utf-8')
+
 def send_message(chat_id: int, text: str):
     requests.post(f'{API_URL}/sendMessage', json={'chat_id': chat_id, 'text': text})
 
 def load_classifier_prompt():
-    # TODO: impl
-    return "Ты — помощник, который помогает готовить ответы на экзаменационные вопросы по дисциплине \"Операционные системы\"." \
-        "Классифицируй, является ли этот экзаменационный билет вопросом по дисциплине \"Операционные системы\""
+    return get_object(str(BUCKET_NAME), 'classifier_prompt')
 
 def load_gpt_prompt():
-    # TODO: impl
-    return '''Ты — помощник, который помогает готовить ответы на экзаменационные вопросы по дисциплине "Операционные системы". 
-После получения вопроса определи, сможешь ли ты на него ответить (относится ли данный вопрос к требуемой дисциплине). Если в запросе несколько вопросов, определи причастность каждого вопроса к теме.
-Если вопрос относится к данной дисциплине, подготовь РАЗВЁРНУТЫЙ ответ: определения, ключевые пункты и пример (если уместно).
-Внимание: каждый развёрнутый ответ на каждый из вопросов в отдельном блоке.
-Внимание: ответ на запрос должен быть без всякого форматирования по типу HTML, Markdown и т.д.
-Формат JSON: {is_ready: True/False, response: "[Ответ на вопрос]"}. is_ready означает, смог ли ты подготовить ответ. Если запрос не по теме, то не смог подготовить.
--Отвечай по теме, не уходя на сторонние рассуждения.
--Максимум слов - 400.
--Ответ на русском языке.
--Добавь определения терминов
--Ответ развёрнутый
--Если вопросов несколько, верни ответ в виде списка в JSON.
--Ответ должен максимально раскрыть вопрос
-'''
+    return get_object(str(BUCKET_NAME), 'gpt_prompt')
 
 def is_exam_question(text: str, prompt: str):
     try:
@@ -76,8 +79,7 @@ def generate_answer(text: str, prompt: str):
         model=f"gpt://{FOLDER_ID}/{AI_MODEL}",
         temperature=0.3,
         instructions=prompt,
-        input=text,
-        max_output_tokens=500
+        input=text
     )
 
     data = json.loads(response.output_text.replace("```", ""))
@@ -188,6 +190,24 @@ async def webhook(request: Request):
 
         return {'ok': True}
 
+def handler(event, context):
+    try:
+        body = event.get("body")
+        if body and isinstance(body, str):
+            body = json.loads(body)
+        elif not body:
+            body = {}
+    except Exception as e:
+        body = {}
+        print("Ошибка при разборе тела:", e)
+
+    response = test_app.post("/", json=body)
+
+    return {
+        "statusCode": response.status_code,
+        "headers": {"Content-Type": "application/json"},
+        "body": response.text
+    }
 
 if __name__ == '__main__':
     uvicorn.run('main:app', host='0.0.0.0', port=8000)

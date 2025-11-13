@@ -1,0 +1,14 @@
+openapi: 3.0.0
+info:
+  title: tg-bot-api-gw
+  version: 1.0.0
+servers:
+- url: https://d5d1ptm65in7arrkitlv.emzafcgx.apigw.yandexcloud.net
+paths:
+  /:
+    post:
+      x-yc-apigateway-integration:
+        type: cloud-functions
+        function_id: d4el9lq44kk3ovqj2mht
+        service_account_id: aje87l2ruu6jejtu5bfe
+      operationId: bot-function

@@ -2,7 +2,10 @@
 from yandex_cloud_ml_sdk import YCloudML
 import os
 
-request_text = '''df'''
+request_text = '''9.40. Билет № 40
+Управление вводом-выводом: Алгоритм планирования запросов к жесткому диску Сканирование C-LOOK.
+
+Управление памятью: Алгоритм замещения страниц FIFO.'''
 FOLDER_ID=os.getenv('FOLDER_ID')
 API_KEY = os.getenv('AI_SA_API_KEY')
 
