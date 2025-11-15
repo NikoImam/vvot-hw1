@@ -208,6 +208,7 @@ __marimo__/
 
 *.tfstate
 *.tfstate.*
+*.lock.hcl
 
 # Crash log files
 crash.log
@@ -241,4 +242,4 @@ terraform.rc
 
 .env_vars.sh
 .tg_bot_token
-bot/bot.zip
+*/bot.zip
