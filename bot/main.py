@@ -11,7 +11,7 @@ import boto3
 
 
 app = FastAPI()
-test_app = TestClient(app)
+adapter_app = TestClient(app)
 
 TG_TOKEN = os.getenv('TG_BOT_TOKEN')
 FOLDER_ID=os.getenv('FOLDER_ID')
@@ -26,12 +26,13 @@ if not (TG_TOKEN and FOLDER_ID and AI_SA_API_KEY and CONFIDENCE_LEVEL and STATIC
     raise RuntimeError("Установлены не все переменные окружения")
 
 API_URL = f"https://api.telegram.org/bot{TG_TOKEN}"
-sdk = YCloudML(
+
+yc_sdk = YCloudML(
     folder_id=f'{FOLDER_ID}',
     auth=f'{AI_SA_API_KEY}',
 )
 
-client = openai.OpenAI(
+openai_client = openai.OpenAI(
     api_key=AI_SA_API_KEY,
     base_url="https://rest-assistant.api.cloud.yandex.net/v1",
     project=FOLDER_ID
@@ -44,13 +45,13 @@ s3_client = boto3.client(
     aws_secret_access_key=STATIC_KEY
 )
 
+def send_message(chat_id: int, text: str):
+    requests.post(f'{API_URL}/sendMessage', json={'chat_id': chat_id, 'text': text})
+
 def get_object(bucket_name: str, object_name: str):
     object = s3_client.get_object(Bucket=bucket_name, Key=object_name)
 
     return object['Body'].read().decode('utf-8')
-
-def send_message(chat_id: int, text: str):
-    requests.post(f'{API_URL}/sendMessage', json={'chat_id': chat_id, 'text': text})
 
 def load_classifier_prompt():
     return get_object(str(BUCKET_NAME), 'classifier_prompt')
@@ -60,7 +61,7 @@ def load_gpt_prompt():
 
 def is_exam_question(text: str, prompt: str):
     try:
-        model = sdk.models.text_classifiers(AI_MODEL).configure(
+        model = yc_sdk.models.text_classifiers(AI_MODEL).configure(
             task_description=prompt,
             labels=['операционные системы', 'другая дисциплина'],
         )
@@ -74,8 +75,9 @@ def is_exam_question(text: str, prompt: str):
     except Exception:
         return False
 
+
 def generate_answer(text: str, prompt: str):
-    response = client.responses.create(
+    response = openai_client.responses.create(
         model=f"gpt://{FOLDER_ID}/{AI_MODEL}",
         temperature=0.3,
         instructions=prompt,
@@ -91,27 +93,7 @@ def generate_answer(text: str, prompt: str):
         return combined
     else:
         raise RuntimeError("Не удалось получить ответа")
-
-
-def recognite_text_on_image(img):
-    img_base64 = base64.b64encode(img).decode("utf-8")
-    data = {"mimeType": "JPEG",
-            "languageCodes": ["ru","en"],
-            "content": img_base64}
-
-    url = "https://ocr.api.cloud.yandex.net/ocr/v1/recognizeText"
-
-    headers= {"Content-Type": "application/json",
-            "Authorization": f"Api-Key {AI_SA_API_KEY}",
-            "x-folder-id": FOLDER_ID,
-            "x-data-logging-enabled": "true"}
     
-    response = requests.post(url=url, headers=headers, data=json.dumps(data))
-    response = response.json()
-
-    return response['result']['textAnnotation']['fullText']
-    
-
 def handle_text_answer(text: str, chat_id: int):
     is_exam_q = is_exam_question(text, load_classifier_prompt())
 
@@ -132,6 +114,25 @@ def handle_text_answer(text: str, chat_id: int):
             send_message(chat_id, "Я не смог подготовить ответ на экзаменационный вопрос.")
 
         return {'ok': True}
+
+def recognite_text_on_image(img):
+    img_base64 = base64.b64encode(img).decode("utf-8")
+    data = {"mimeType": "JPEG",
+            "languageCodes": ["ru","en"],
+            "content": img_base64}
+
+    url = "https://ocr.api.cloud.yandex.net/ocr/v1/recognizeText"
+
+    headers= {"Content-Type": "application/json",
+            "Authorization": f"Api-Key {AI_SA_API_KEY}",
+            "x-folder-id": FOLDER_ID,
+            "x-data-logging-enabled": "true"}
+    
+    response = requests.post(url=url, headers=headers, data=json.dumps(data))
+    response = response.json()
+
+    return response['result']['textAnnotation']['fullText']
+    
 
 @app.post("/")
 async def webhook(request: Request):
@@ -201,7 +202,7 @@ def handler(event, context):
         body = {}
         print("Ошибка при разборе тела:", e)
 
-    response = test_app.post("/", json=body)
+    response = adapter_app.post("/", json=body)
 
     return {
         "statusCode": response.status_code,
