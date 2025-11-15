@@ -14,8 +14,8 @@ app = FastAPI()
 adapter_app = TestClient(app)
 
 BUCKET_NAME = os.getenv('BUCKET_NAME')
-CLASSIFIER_PROMPT_KEY = os.getenv('CLASSIFIER_PROMPT_KEY')
-GPT_PROMPT_KEY = os.getenv('GPT_PROMPT_KEY')
+CLASSIFIER_PROMPT_KEY = os.getenv('CLASSIFIER_PROMPT_KEY', 'classifier prompt')
+GPT_PROMPT_KEY = os.getenv('GPT_PROMPT_KEY', 'gpt prompt')
 
 AI_SA_API_KEY = os.getenv('AI_SA_API_KEY')
 STATIC_KEY = os.getenv('STATIC_KEY')
@@ -59,10 +59,10 @@ def get_object(bucket_name: str, object_name: str):
     return object['Body'].read().decode('utf-8')
 
 def load_classifier_prompt():
-    return get_object(str(BUCKET_NAME), 'CLASSIFIER_PROMPT_KEY')
+    return get_object(str(BUCKET_NAME), CLASSIFIER_PROMPT_KEY)
 
 def load_gpt_prompt():
-    return get_object(str(BUCKET_NAME), 'GPT_PROMPT_KEY')
+    return get_object(str(BUCKET_NAME), GPT_PROMPT_KEY)
 
 def is_exam_question(text: str, prompt: str):
     try:
