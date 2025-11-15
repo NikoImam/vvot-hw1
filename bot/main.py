@@ -13,14 +13,19 @@ import boto3
 app = FastAPI()
 adapter_app = TestClient(app)
 
-TG_TOKEN = os.getenv('TG_BOT_TOKEN')
-FOLDER_ID=os.getenv('FOLDER_ID')
+BUCKET_NAME = os.getenv('BUCKET_NAME')
+CLASSIFIER_PROMPT_KEY = os.getenv('CLASSIFIER_PROMPT_KEY')
+GPT_PROMPT_KEY = os.getenv('GPT_PROMPT_KEY')
+
 AI_SA_API_KEY = os.getenv('AI_SA_API_KEY')
-CONFIDENCE_LEVEL = float(os.getenv('CONFIDENCE_LEVEL', 0.8))
-AI_MODEL = os.getenv('AI_MODEL', "yandexgpt-lite")
 STATIC_KEY = os.getenv('STATIC_KEY')
 STATIC_KEY_ID = os.getenv('STATIC_KEY_ID')
-BUCKET_NAME=os.getenv('BUCKET_NAME')
+
+TG_TOKEN = os.getenv('TG_BOT_TOKEN')
+FOLDER_ID=os.getenv('FOLDER_ID')
+
+CONFIDENCE_LEVEL = float(os.getenv('CONFIDENCE_LEVEL', 0.8))
+AI_MODEL = os.getenv('AI_MODEL', "yandexgpt-lite")
 
 if not (TG_TOKEN and FOLDER_ID and AI_SA_API_KEY and CONFIDENCE_LEVEL and STATIC_KEY and STATIC_KEY_ID):
     raise RuntimeError("Установлены не все переменные окружения")
@@ -54,10 +59,10 @@ def get_object(bucket_name: str, object_name: str):
     return object['Body'].read().decode('utf-8')
 
 def load_classifier_prompt():
-    return get_object(str(BUCKET_NAME), 'classifier_prompt')
+    return get_object(str(BUCKET_NAME), 'CLASSIFIER_PROMPT_KEY')
 
 def load_gpt_prompt():
-    return get_object(str(BUCKET_NAME), 'gpt_prompt')
+    return get_object(str(BUCKET_NAME), 'GPT_PROMPT_KEY')
 
 def is_exam_question(text: str, prompt: str):
     try:

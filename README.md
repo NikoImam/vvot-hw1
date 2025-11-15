@@ -1,5 +1,4 @@
-# vvot-hw1 | Imamov Niyaz | 11-207
-Telegram bot for giving exam questions solutions using YandexGPT, Yandex Cloud and Terraform
+<h1> Домашняя работа №1 | Имамов Нияз Флурович | 11-207 | vvot05 </h1>
 
 # Настройка окружения
 
@@ -10,11 +9,24 @@ yc resource-manager folder add-access-binding $FOLDER_ID \
     --role admin \
     --subject serviceAccount:$TERR_SA_ID
 
-export YC_TOKEN=$(yc iam create-token --impersonate-service-account-id $TERR_SA_ID)
-export CLOUD_ID=<cloud_id>
-export FOLDER_ID=<folder_id>
+mkdir -p ~/.yc-keys
+yc iam key create --output ~/.yc-keys/key.json --service-account-id $TERR_SA_ID
 
-export TF_VAR_cloud_id=$CLOUD_ID
-export TF_VAR_folder_id=$FOLDER_ID
-export TF_VAR_yc_sa_iam_key=$YC_TOKEN
+export TF_VAR_cloud_id=<cloud id>
+export TF_VAR_folder_id=<folder id>
+export TF_VAR_tg_bot_token=<tg-bot token>
+export TF_VAR_HOME=$HOME
+```
+
+```shell
+terraform init
+```
+```shell
+terraform apply
+```
+```shell
+terraform destroy
+```
+```shell
+yc iam service-account delete hw1-tf-sa
 ```

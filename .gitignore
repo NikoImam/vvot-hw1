@@ -240,3 +240,5 @@ terraform.rc
 **/.terraform/*
 
 .env_vars.sh
+.tg_bot_token
+bot/bot.zip
