@@ -5,7 +5,7 @@
 ```shell
 export TF_VAR_cloud_id=<cloud id>
 export TF_VAR_folder_id=<folder id>
-export TF_VAR_tg_bot_token=<tg-bot token>
+export TF_VAR_tg_bot_key=<tg-bot token>
 export TF_VAR_HOME=$HOME
 
 yc iam service-account create --name hw1-tf-sa
